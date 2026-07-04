@@ -49,10 +49,13 @@ body{margin:0;}
 .lh-search-input{width:100%;padding:9px 12px;border:1px solid var(--paper-line);border-radius:8px;background:#fff;font-size:13px;font-family:'Inter',sans-serif;color:var(--ink);}
 .lh-search-input:focus{outline:none;border-color:var(--rust);}
 
-.lh-body{display:grid;grid-template-columns:200px 1fr 260px;min-height:420px;transition:grid-template-columns 0.15s ease;}
-.lh-body.lh-cats-collapsed{grid-template-columns:0px 1fr 260px;}
+.lh-body{display:grid;grid-template-columns:200px var(--lh-list-w, 320px) 6px 1fr 260px;min-height:420px;transition:grid-template-columns 0.15s ease;position:relative;}
+.lh-body.lh-cats-collapsed{grid-template-columns:0px var(--lh-list-w, 320px) 6px 1fr 260px;}
 .lh-body.lh-cats-collapsed .lh-panel-cats{padding:0;border-right:none;overflow:hidden;}
-@media (max-width:640px){.lh-body{grid-template-columns:1fr;}.lh-panel-side{display:none;}}
+@media (max-width:640px){.lh-body{grid-template-columns:1fr;}.lh-panel-side{display:none;}.lh-resizer{display:none;}}
+.lh-resizer{cursor:col-resize;background:var(--paper-line);position:relative;}
+.lh-resizer::after{content:'';position:absolute;top:0;bottom:0;left:-4px;right:-4px;}
+.lh-resizer:hover,.lh-resizer.dragging{background:var(--rust);}
 .lh-cats-toggle-btn{border:1px solid var(--paper-line);background:#fff;border-radius:6px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink-soft);font-size:13px;line-height:1;}
 .lh-cats-toggle-btn:hover{background:var(--paper-card);color:var(--rust);}
 
@@ -110,7 +113,7 @@ body{margin:0;}
 .lh-inline-input:focus{outline:none;border-color:var(--rust);}
 .lh-inline-ok{border:none;background:var(--rust);color:#fff;border-radius:6px;width:24px;font-size:13px;cursor:pointer;}
 
-.lh-panel-list{border-right:1px solid var(--paper-line);overflow-y:auto;max-height:600px;}
+.lh-panel-list{overflow-y:auto;max-height:600px;}
 .lh-list-header{padding:12px 16px 8px;display:flex;justify-content:space-between;align-items:center;}
 .lh-list-header-label{font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-faint);font-weight:500;}
 .lh-add-btn{border:1px solid var(--paper-line);background:#fff;border-radius:6px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--rust);font-size:15px;line-height:1;}
@@ -391,9 +394,10 @@ textarea.lh-field{resize:vertical;min-height:70px;font-family:'Inter',sans-serif
           <button class="lh-add-btn" onclick="LH.openModal()" aria-label="Thêm ghi chú">+</button>
         </div>
       </div>
-      <div id="lh-bulk-bar"></div>
+     <div id="lh-bulk-bar"></div>
       <div id="lh-list"></div>
     </div>
+    <div class="lh-resizer" id="lh-resizer" title="Kéo để đổi độ rộng danh sách ghi chú" onmousedown="LH.startResize(event)" ontouchstart="LH.startResize(event)"></div>
     <div class="lh-panel-detail" id="lh-detail"></div>
     <div class="lh-panel-side" id="lh-side"></div>
   </div>
@@ -813,6 +817,7 @@ const LH = {
     this.migrateData();
     this.validateAndRepair();
     this.checkBackupReminder();
+    this.applySavedListWidth();
     this.render();
     this.setStatus('Sẵn sàng · dữ liệu lưu tự động');
     this.startPeriodicSync();
@@ -2275,11 +2280,55 @@ const LH = {
     if(bodyEl) bodyEl.classList.toggle('lh-cats-collapsed', !!this.catsCollapsed);
   },
 
-  toggleCatsPanel(){
+ toggleCatsPanel(){
     this.catsCollapsed = !this.catsCollapsed;
     const bodyEl = document.getElementById('lh-body-library');
     if(bodyEl) bodyEl.classList.toggle('lh-cats-collapsed', this.catsCollapsed);
     window.storage.set('lh-cats-collapsed', String(this.catsCollapsed), false).catch(() => {});
+  },
+
+  applySavedListWidth(){
+    let saved = null;
+    try{ saved = localStorage.getItem('learning-hub::ui-list-width'); }catch(e){}
+    const bodyEl = document.getElementById('lh-body-library');
+    if(bodyEl && saved) bodyEl.style.setProperty('--lh-list-w', saved + 'px');
+  },
+
+  startResize(e){
+    e.preventDefault();
+    const bodyEl = document.getElementById('lh-body-library');
+    const handle = document.getElementById('lh-resizer');
+    if(!bodyEl || !handle) return;
+    const startX = (e.touches ? e.touches[0].clientX : e.clientX);
+    const startWidth = handle.previousElementSibling.getBoundingClientRect().width;
+    handle.classList.add('dragging');
+
+    const onMove = (ev) => {
+      const clientX = (ev.touches ? ev.touches[0].clientX : ev.clientX);
+      const delta = clientX - startX;
+      const bodyWidth = bodyEl.getBoundingClientRect().width;
+      const catsWidth = this.catsCollapsed ? 0 : 200;
+      const MIN_LIST = 220;
+      const MIN_DETAIL = 260;
+      const maxList = Math.max(MIN_LIST, bodyWidth - catsWidth - 6 - MIN_DETAIL - 260);
+      let newWidth = Math.round(startWidth + delta);
+      newWidth = Math.min(Math.max(newWidth, MIN_LIST), maxList);
+      bodyEl.style.setProperty('--lh-list-w', newWidth + 'px');
+    };
+    const onEnd = () => {
+      handle.classList.remove('dragging');
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onEnd);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+      const finalWidth = bodyEl.style.getPropertyValue('--lh-list-w');
+      const px = parseInt(finalWidth, 10);
+      if(px){ try{ localStorage.setItem('learning-hub::ui-list-width', String(px)); }catch(err){} }
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onEnd);
+    document.addEventListener('touchmove', onMove, {passive:false});
+    document.addEventListener('touchend', onEnd);
   },
 
   renderCats(){
