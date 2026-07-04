@@ -2972,7 +2972,8 @@ const LH = {
       const skipNote = skippedExisting
         ? ` ${skippedExisting} ghi chú trong file đã có sẵn trong máy này (kể cả đang ở Thùng rác) nên không nhập lại — muốn khôi phục ghi chú đã xoá, vào Thùng rác → Khôi phục.`
         : '';
-      this.setGlobalMsg('success', `Nhập thành công: ${added} ghi chú mới, ${addedCats} mục cha mới đã được gộp vào dữ liệu hiện có.${skipNote}`);      event.target.value = '';
+      this.setGlobalMsg('success', `Nhập thành công: ${added} ghi chú mới, ${addedCats} mục cha mới đã được gộp vào dữ liệu hiện có.${skipNote}`); 
+      event.target.value = '';
     };
     reader.onerror = () => {
       this.setGlobalMsg('error', 'Không đọc được file — vui lòng thử lại.');
