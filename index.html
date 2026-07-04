@@ -414,7 +414,7 @@ textarea.lh-field{resize:vertical;min-height:70px;font-family:'Inter',sans-serif
 // tạo tài khoản đăng nhập duy nhất, rồi dán Project URL + anon key vào 2 dòng dưới đây.
 // ============================================================
 const SUPABASE_CONFIG = {
-  url: 'Dhttps://vveiwjbdwsnkcdwswfnr.supabase.co',      // vd: https://xxxxx.supabase.co
+  url: 'https://vveiwjbdwsnkcdwswfnr.supabase.co',      // vd: https://xxxxx.supabase.co
   anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2ZWl3amJkd3Nua2Nkd3N3Zm5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxNDA4ODIsImV4cCI6MjA5ODcxNjg4Mn0.MJPWrr1sl7fO9SV-KyDbRBvPtMrOBHXSDHrVwEbXIKE'      // anon/public key — an toàn để đưa vào code phía client, vì đã có RLS bảo vệ theo user_id
 };
 const SYNC_ENABLED = SUPABASE_CONFIG.url.startsWith('http');
