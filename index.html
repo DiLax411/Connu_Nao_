@@ -2930,8 +2930,9 @@ const LH = {
         return;
       }
 
-      const existingIds = new Set(this.notes.map(n => n.id));
+     const existingIds = new Set(this.notes.map(n => n.id));
       let added = 0;
+      let skippedExisting = 0;
       data.notes.forEach(n => {
         if(!existingIds.has(n.id)){
           // Dọn field cache cũ nếu file backup này được xuất TRƯỚC KHI sửa lỗi cache-lẫn-vào-dữ-liệu
@@ -2943,6 +2944,8 @@ const LH = {
           n.updatedAt = Date.now(); // note nhập từ file -> cần đẩy lên mây ở lần lưu tới
           this.notes.push(n);
           added++;
+        }else{
+          skippedExisting++; // đã có id này trong máy (có thể đang nằm ở Thùng rác) -> không phải lỗi, chỉ là không có gì mới để gộp
         }
       });
       const existingCatIds = new Set(this.categories.map(c => c.id));
@@ -2964,8 +2967,12 @@ const LH = {
 
       this.persist();
       this.render();
-      this.setGlobalMsg('success', `Nhập thành công: ${added} ghi chú mới, ${addedCats} mục cha mới đã được gộp vào dữ liệu hiện có.`);
-      event.target.value = '';
+      // Ghi chú "trùng id" là bình thường (import chỉ GỘP THÊM note chưa từng có, không dùng để hoàn
+      // tác xoá) — nói rõ để không hiểu nhầm là lỗi, và chỉ đúng đường khôi phục nếu đó là điều họ muốn.
+      const skipNote = skippedExisting
+        ? ` ${skippedExisting} ghi chú trong file đã có sẵn trong máy này (kể cả đang ở Thùng rác) nên không nhập lại — muốn khôi phục ghi chú đã xoá, vào Thùng rác → Khôi phục.`
+        : '';
+      this.setGlobalMsg('success', `Nhập thành công: ${added} ghi chú mới, ${addedCats} mục cha mới đã được gộp vào dữ liệu hiện có.${skipNote}`);      event.target.value = '';
     };
     reader.onerror = () => {
       this.setGlobalMsg('error', 'Không đọc được file — vui lòng thử lại.');
