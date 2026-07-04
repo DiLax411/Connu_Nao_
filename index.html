@@ -2748,6 +2748,7 @@ const LH = {
     const totalNotes = notes.filter(n => n.type === 'note').length;
     const totalTasks = notes.filter(n => n.type === 'task').length;
     const doneTasks = notes.filter(n => n.type === 'task' && n.done).length;
+    const doneNotes = notes.filter(n => n.type === 'note' && n.status === 'done').length;
 
     // Dashboard chỉ thống kê theo mục cha; số lượng mục con hiển thị ở sidebar Thư viện.
     let subcatCards = '';
@@ -2823,6 +2824,7 @@ const LH = {
         <div class="lh-dash-card"><p class="lh-dash-card-label">Chuỗi ngày học</p><p class="lh-dash-card-value">${streak}</p></div>
         <div class="lh-dash-card"><p class="lh-dash-card-label">Tổng ghi chú</p><p class="lh-dash-card-value">${totalNotes}</p></div>
         <div class="lh-dash-card"><p class="lh-dash-card-label">Rèn luyện hoàn thành</p><p class="lh-dash-card-value">${doneTasks}/${totalTasks}</p></div>
+        <div class="lh-dash-card"><p class="lh-dash-card-label">Ghi chú đã hoàn thành</p><p class="lh-dash-card-value">${doneNotes}/${totalNotes}</p></div>
         <div class="lh-dash-card"><p class="lh-dash-card-label">Đang dang dở</p><p class="lh-dash-card-value" style="color:var(--rust);">${totalInProgress}</p></div>
       </div>
 
