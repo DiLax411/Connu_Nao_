@@ -2670,7 +2670,7 @@ const LH = {
     const el = document.getElementById('lh-side');
     const active = this.activeNotes();
     const total = active.length;
-    const done = active.filter(n => n.done).length;
+   const done = active.filter(n => (n.type === 'task' && n.done) || (n.type === 'note' && n.status === 'done')).length;
     const byCategory = {};
     active.forEach(n => byCategory[n.category] = (byCategory[n.category]||0)+1);
     const topTag = this.getTopTags()[0];
