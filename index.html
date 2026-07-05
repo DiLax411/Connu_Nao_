@@ -2261,9 +2261,12 @@ addLinkByTitle(noteId, typedTitle, type){
       this.render();
       return;
     }
-    this.categories = this.categories.filter(c => c.id !== catId);
+   this.categories = this.categories.filter(c => c.id !== catId);
     if(this.activeCat === catId){ this.activeCat = 'all'; this.activeSubcat = null; }
-    moveCategory(catId, dir){
+    this.renderCats();
+  },
+
+  moveCategory(catId, dir){
     const idx = this.categories.findIndex(c => c.id === catId);
     const newIdx = idx + dir;
     if(idx < 0 || newIdx < 0 || newIdx >= this.categories.length) return;
