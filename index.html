@@ -49,10 +49,10 @@ body{margin:0;}
 .lh-search-input{width:100%;padding:9px 12px;border:1px solid var(--paper-line);border-radius:8px;background:#fff;font-size:13px;font-family:'Inter',sans-serif;color:var(--ink);}
 .lh-search-input:focus{outline:none;border-color:var(--rust);}
 
-.lh-body{display:grid;grid-template-columns:200px var(--lh-list-w, 320px) 6px 1fr 260px;min-height:420px;transition:grid-template-columns 0.15s ease;position:relative;}
+.lh-body{display:grid;grid-template-columns:200px var(--lh-list-w, 320px) 6px 1fr;min-height:420px;transition:grid-template-columns 0.15s ease;position:relative;}
 .lh-body.lh-cats-collapsed{grid-template-columns:0px var(--lh-list-w, 320px) 6px 1fr 260px;}
 .lh-body.lh-cats-collapsed .lh-panel-cats{padding:0;border-right:none;overflow:hidden;}
-@media (max-width:640px){.lh-body{grid-template-columns:1fr;}.lh-panel-side{display:none;}.lh-resizer{display:none;}}
+@media (max-width:640px){.lh-body{grid-template-columns:1fr;}.lh-resizer{display:none;}}
 .lh-resizer{cursor:col-resize;background:var(--paper-line);position:relative;}
 .lh-resizer::after{content:'';position:absolute;top:0;bottom:0;left:-4px;right:-4px;}
 .lh-resizer:hover,.lh-resizer.dragging{background:var(--rust);}
@@ -168,12 +168,6 @@ body{margin:0;}
 .lh-btn:hover{background:var(--paper-card);}
 .lh-btn.done{border-color:#3E6B5C;color:#3E6B5C;background:#DCE9E1;}
 .lh-btn.danger{color:var(--rust);}
-
-.lh-panel-side{padding:18px 16px;overflow-y:auto;max-height:600px;}
-.lh-stat-card{background:var(--paper-card);border-radius:9px;padding:12px 14px;margin-bottom:10px;}
-.lh-stat-label{font-size:11px;color:var(--ink-faint);margin:0 0 3px;}
-.lh-stat-value{font-family:'Source Serif 4',serif;font-size:22px;font-weight:600;margin:0;}
-.lh-stat-value.small{font-size:15px;}
 
 #lh-modal-overlay{position:absolute;inset:0;background:rgba(43,42,40,0.35);display:none;align-items:flex-start;justify-content:center;padding:30px 20px;z-index:10;border-radius:12px;overflow-y:auto;}
 #lh-modal-overlay.open{display:flex;}
@@ -401,7 +395,6 @@ textarea.lh-field{resize:vertical;min-height:70px;font-family:'Inter',sans-serif
     </div>
     <div class="lh-resizer" id="lh-resizer" title="Kéo để đổi độ rộng danh sách ghi chú" onmousedown="LH.startResize(event)" ontouchstart="LH.startResize(event)"></div>
     <div class="lh-panel-detail" id="lh-detail"></div>
-    <div class="lh-panel-side" id="lh-side"></div>
   </div>
   <div class="lh-dash" id="lh-body-dashboard" style="display:none;"></div>
   <div class="lh-dash" id="lh-body-trash" style="display:none;"></div>
@@ -2325,7 +2318,6 @@ renderMarkdownLite(text, noteId){
     this.renderCats();
     this.renderList();
     this.renderDetail();
-    this.renderSide();
     this.renderUndoBtn();
     const btn = document.getElementById('lh-select-mode-btn');
     if(btn){
@@ -2782,42 +2774,6 @@ renderList(){
     el.innerHTML = html;
     if(this.movingId === note.id) this.populateMoveSubcat(note.category, note.subcat);
   },
-
-  renderSide(){
-    const el = document.getElementById('lh-side');
-    const active = this.activeNotes();
-    const total = active.length;
-   const done = active.filter(n => (n.type === 'task' && n.done) || (n.type === 'note' && n.status === 'done')).length;
-    const byCategory = {};
-    active.forEach(n => byCategory[n.category] = (byCategory[n.category]||0)+1);
-    const topTag = this.getTopTags()[0];
-
-    const streak = this.computeStreak();
-    el.innerHTML = `
-      <p class="lh-section-label" style="margin-top:0;">Tiến trình</p>
-      <div class="lh-stat-card">
-        <p class="lh-stat-label">Chuỗi ngày học</p>
-        <p class="lh-stat-value">${streak} <span style="font-size:13px;color:var(--ink-faint);font-family:'Inter',sans-serif;">ngày</span></p>
-      </div>
-      <div class="lh-stat-card">
-        <p class="lh-stat-label">Đã hoàn thành</p>
-        <p class="lh-stat-value small">${done} / ${total} ghi chú</p>
-      </div>
-      ${topTag ? `<div class="lh-stat-card">
-        <p class="lh-stat-label">Chủ đề hay quay lại nhất</p>
-        <p class="lh-stat-value small">#${this.esc(topTag.tag)} (${topTag.count})</p>
-      </div>` : ''}
-      <p class="lh-section-label">Theo mục</p>
-      ${this.categories.map(c => `
-        <div style="display:flex;align-items:center;gap:7px;font-size:12px;margin-bottom:7px;color:var(--ink-soft);">
-          <span class="lh-cat-dot" style="background:${c.color}"></span>
-          ${this.esc(c.label)}
-          <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;color:var(--ink-faint);">${byCategory[c.id]||0}</span>
-        </div>
-      `).join('')}
-    `;
-  },
-
   renderTrash(){
     const el = document.getElementById('lh-body-trash');
     const trashed = this.notes.filter(n => n.deletedAt).sort((a,b) => b.deletedAt - a.deletedAt);
