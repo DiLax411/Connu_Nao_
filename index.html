@@ -1669,19 +1669,21 @@ const LH = {
     ta.setSelectionRange(newStart, newEnd);
   },
 
-  renderMarkdownLite(text){
+renderMarkdownLite(text, noteId){
     if(!text) return '<em style="color:var(--ink-faint)">Chưa có nội dung.</em>';
     const esc = this.esc(text);
     const lines = esc.split('\n');
     let html = '';
     let inList = false;
-    for(let line of lines){
+    for(let i=0;i<lines.length;i++){
+      const line = lines[i];
       const chkMatch = line.match(/^-\s\[( |x|X)\]\s(.*)$/);
       const bulletMatch = line.match(/^-\s(.*)$/);
       if(chkMatch){
         if(!inList){ html += '<ul>'; inList = true; }
         const checked = chkMatch[1].toLowerCase() === 'x';
-        html += `<li class="lh-chk-item"><input type="checkbox" disabled ${checked?'checked':''}><span>${this.inlineFormat(chkMatch[2])}</span></li>`;
+        const onchange = noteId ? ` onchange="LH.toggleChecklistLine('${this.jsAttr(noteId)}', ${i})"` : ' disabled';
+        html += `<li class="lh-chk-item"><input type="checkbox" ${checked?'checked':''}${onchange}><span>${this.inlineFormat(chkMatch[2])}</span></li>`;
       }else if(bulletMatch){
         if(!inList){ html += '<ul>'; inList = true; }
         html += `<li>${this.inlineFormat(bulletMatch[1])}</li>`;
@@ -1692,6 +1694,24 @@ const LH = {
     }
     if(inList) html += '</ul>';
     return html;
+  },
+
+  toggleChecklistLine(noteId, lineIndex){
+    const n = this.notes.find(x => x.id === noteId);
+    if(!n) return;
+    const lines = (n.content||'').split('\n');
+    const line = lines[lineIndex];
+    if(line === undefined) return;
+    const m = line.match(/^(-\s\[)( |x|X)(\]\s.*)$/);
+    if(!m) return;
+    const newChecked = m[2].toLowerCase() !== 'x';
+    lines[lineIndex] = m[1] + (newChecked ? 'x' : ' ') + m[3];
+    n.content = lines.join('\n');
+    n.updatedAt = Date.now();
+    this._notesVersion++;
+    this.persist();
+    this.renderDetail();
+  },
   },
 
   inlineFormat(line){
@@ -2621,7 +2641,7 @@ const LH = {
         ${note.source ? `<span class="lh-meta-badge">📚 ${this.esc(note.source)}</span>` : ''}
         ${note.purpose ? `<span class="lh-meta-badge">🎯 ${this.esc(note.purpose)}</span>` : ''}
       </div>` : ''}
-      <div class="lh-detail-content lh-note-content-rendered">${this.renderMarkdownLite(note.content)}</div>
+      <div class="lh-detail-content lh-note-content-rendered">${this.renderMarkdownLite(note.content, note.id)}</div>
       <p class="lh-detail-date">Tạo ngày ${this.formatDate(note.createdAt)}${note.lastEditedAt ? ' · Cập nhật lần cuối ' + this.formatDate(note.lastEditedAt) : ''}${note.nextReviewAt ? ' · Lần ôn tập tiếp theo: ' + this.formatDate(note.nextReviewAt) : ''}</p>
       <div class="lh-tag-row">${note.tags.map(t=>`<span class="lh-tag"><span class="lh-tag-color-dot" style="background:${this.tagColor(t)}"></span>#${this.esc(t)}</span>`).join('')}</div>
       ${due ? `<div class="lh-dup-warning">⏰ Đã đến hạn ôn tập ghi chú này (Spaced Repetition).</div>` : ''}
