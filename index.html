@@ -226,7 +226,6 @@ textarea.lh-field{resize:vertical;min-height:70px;font-family:'Inter',sans-serif
 .lh-dash-empty{font-size:12.5px;color:var(--ink-faint);font-style:italic;padding:6px 0;}
 
 /* --- Knowledge graph / lifecycle / event-log additions --- */
-.lh-lifecycle-badge{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;padding:3px 8px;border-radius:20px;font-weight:600;letter-spacing:0.02em;white-space:nowrap;}
 .lh-rel-badge{font-size:9.5px;padding:1px 6px;border-radius:10px;background:var(--paper-line);color:var(--ink-soft);font-family:'JetBrains Mono',monospace;margin-right:2px;}
 .lh-link-item{position:relative;}
 .lh-link-item select{font-size:10.5px;border:1px solid var(--paper-line);border-radius:5px;margin-left:auto;padding:1px 3px;background:#fff;}
@@ -296,10 +295,7 @@ textarea.lh-field{resize:vertical;min-height:70px;font-family:'Inter',sans-serif
         </div>
       </div>
 
-     <div style="display:flex;gap:16px;margin:4px 0 12px;">
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
-          <input type="checkbox" id="lh-f-isdraft"> ✏️ Đây là bản Draft
-        </label>
+    <div style="display:flex;margin:4px 0 12px;">
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
           <input type="checkbox" id="lh-f-reminder"> 🔔 Nhắc tôi hoàn thiện
         </label>
@@ -644,9 +640,6 @@ const RELATION_TYPES = [
 ];
 function relLabel(id){ const r = RELATION_TYPES.find(x=>x.id===id); return r ? r.label : 'Liên quan'; }
 
-// ---- GĐ1: Knowledge lifecycle states ----
-// ---- Draft flag đơn giản, thay cho "vòng đời tri thức" nhiều tầng cũ ----
-const DRAFT_BADGE = {label:'Draft', color:'#8C5A9C', bg:'#EBDCEF'};
 // ---- GĐ3: lightweight stopwords for content matching ----
 const STOPWORDS = new Set(['và','là','của','có','một','các','trong','cho','được','này','đã','với','không','những','để','khi','như','the','a','an','is','are','of','to','in','on','and','or','for','with','that','this','it']);
 
@@ -951,11 +944,7 @@ const LH = {
         changed = true; touched = true;
       }
       if(!Array.isArray(n.links)) n.links = [];
-     // migrate: note cũ có lifecycle -> suy ra isDraft; note đã có isDraft/needsReminder thì bỏ qua
-      if(n.isDraft === undefined){
-        n.isDraft = n.lifecycle === 'draft' || n.lifecycle === 'inbox';
-        changed = true; touched = true;
-      }
+    // migrate: note cũ chưa có needsReminder thì mặc định tắt
       if(n.needsReminder === undefined){
         n.needsReminder = false;
         changed = true; touched = true;
@@ -1511,8 +1500,7 @@ const LH = {
     this.draftTags = note ? [...note.tags] : [];
     this.draftType = note ? note.type : 'note';
     this.draftStatus = note ? (note.status || 'in_progress') : 'in_progress';
-    document.getElementById('lh-f-isdraft').checked = note ? !!note.isDraft : false;
-    document.getElementById('lh-f-reminder').checked = note ? !!note.needsReminder : false;
+   document.getElementById('lh-f-reminder').checked = note ? !!note.needsReminder : false;
     document.getElementById('lh-f-domain').value = note ? (note.domain || '') : '';
     document.getElementById('lh-f-source').value = note ? (note.source || '') : '';
     document.getElementById('lh-f-purpose').value = note ? (note.purpose || '') : '';
@@ -1826,8 +1814,7 @@ renderMarkdownLite(text, noteId){
     const rawTags = pendingTag ? [...this.draftTags, pendingTag] : [...this.draftTags];
     const tags = Array.from(new Set(rawTags.map(t => this.normalizeTag(t)).filter(Boolean)));
     tags.forEach(t => this.ensureTagMeta(t));
-const isDraft = document.getElementById('lh-f-isdraft').checked;
-    const needsReminder = document.getElementById('lh-f-reminder').checked;
+const needsReminder = document.getElementById('lh-f-reminder').checked;
     const domain = document.getElementById('lh-f-domain').value.trim();
     const source = document.getElementById('lh-f-source').value.trim();
     const purpose = document.getElementById('lh-f-purpose').value.trim();
@@ -1839,7 +1826,7 @@ const isDraft = document.getElementById('lh-f-isdraft').checked;
         n.title = title; n.category = category; n.subcat = subcat; n.content = content; n.tags = tags;
         n.type = this.draftType;
         if(this.draftType === 'note') n.status = this.draftStatus;
-       n.isDraft = isDraft; n.needsReminder = needsReminder; n.domain = domain; n.source = source; n.purpose = purpose;
+      n.needsReminder = needsReminder; n.domain = domain; n.source = source; n.purpose = purpose;
         n.lastEditedAt = Date.now();
         n.updatedAt = Date.now();
         this._notesVersion++; // title/content đổi -> cache token/gợi ý liên quan của note này cần tính lại
@@ -1860,7 +1847,7 @@ const isDraft = document.getElementById('lh-f-isdraft').checked;
       links: this.findAutoLinks(tags, id),
       pinned:false, status: this.draftType === 'note' ? this.draftStatus : null,
       done:false, usedCount:0, createdAt:Date.now(), updatedAt:Date.now(),
-      isDraft, needsReminder, domain, source, purpose, reviewInterval:0, nextReviewAt:null
+      needsReminder, domain, source, purpose, reviewInterval:0, nextReviewAt:null
     };
     this.notes.push(newNote);
     this._notesVersion++; // note mới -> cần đưa vào inverted index
@@ -2518,7 +2505,7 @@ renderList(){
         ${checkbox}
         <p class="lh-note-item-title ${n.done?'done':''}">${marker}${this.esc(n.title)}</p>
         <p class="lh-note-item-preview">${preview}</p>
-        <p class="lh-note-item-meta"><span class="lh-tag-color-dot" style="background:${c.color}"></span>${this.esc(c.label)}${n.tags.length ? ' · '+n.tags.slice(0,2).map(t=>'#'+this.esc(t)).join(' ') : ''}${n.isDraft ? ' · ✏️Draft' : ''}${n.needsReminder ? ' · 🔔' : ''}${this.isDueForReview(n) ? ' · ⏰' : ''}</p>
+        <p class="lh-note-item-meta"><span class="lh-tag-color-dot" style="background:${c.color}"></span>${this.esc(c.label)}${n.tags.length ? ' · '+n.tags.slice(0,2).map(t=>'#'+this.esc(t)).join(' ') : ''}${n.needsReminder ? ' · 🔔' : ''}${this.isDueForReview(n) ? ' · ⏰' : ''}</p>
         <p class="lh-note-item-date">${this.formatDate(n.createdAt)}</p>
       </div>`;
     }).join('');
@@ -2670,8 +2657,7 @@ renderList(){
           <span class="lh-badge" style="background:${c.bg};color:${c.color}">${this.esc(c.label)}</span>
           ${s ? `<span class="lh-badge" style="background:var(--paper-card);color:var(--ink-faint)">${this.esc(s.label)}</span>` : ''}
           ${note.type === 'note' ? `<span class="lh-badge lh-status-badge-${note.status === 'done' ? 'done' : 'progress'}">${note.status === 'done' ? 'Hoàn thành' : 'Đang thực hiện'}</span>` : ''}
-          ${note.isDraft ? `<span class="lh-lifecycle-badge" style="background:${DRAFT_BADGE.bg};color:${DRAFT_BADGE.color}">${DRAFT_BADGE.label}</span>` : ''}
-        </div>
+                  </div>
       </div>
       ${(note.domain || note.source || note.purpose) ? `<div class="lh-meta-badges">
         ${note.domain ? `<span class="lh-meta-badge">🧭 ${this.esc(note.domain)}</span>` : ''}
