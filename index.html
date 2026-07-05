@@ -2838,25 +2838,23 @@ renderList(){
       </div>`;
     });
 
-    // in-progress: unfinished tasks + notes still in progress, oldest first
-    const inProgress = notes
-      .filter(n => n.type === 'task' && !n.done)
+// Cần hoàn thiện: gộp task + note, lồng 2 điều kiện — CHƯA hoàn thành VÀ đã bật 🔔 nhắc nhở
+    const needsAttention = notes
+      .filter(n => n.needsReminder && ((n.type === 'task' && !n.done) || (n.type === 'note' && n.status !== 'done')))
       .sort((a,b) => a.createdAt - b.createdAt);
-   const inProgressNotes = notes
-      .filter(n => n.type === 'note' && n.status === 'in_progress' && n.needsReminder)
-      .sort((a,b) => a.createdAt - b.createdAt);
-    const totalInProgress = inProgress.length + inProgressNotes.length;
+    const totalInProgress = needsAttention.length;
 
-    const inProgressHtml = inProgress.length
-      ? inProgress.map(n => {
+    const needsAttentionHtml = needsAttention.length
+      ? needsAttention.map(n => {
           const c = this.catOf(n.category);
+          const s = (n.type === 'note' && n.subcat) ? this.getSubcat(n.category, n.subcat) : null;
           return `<div class="lh-dash-progress-item" onclick="LH.setView('library');LH.select('${n.id}')">
-            <span style="color:${c.color};font-size:11px;">${this.esc(c.label)}</span>
+            <span style="color:${c.color};font-size:11px;">${n.type === 'task' ? '🏋️ ' : ''}${this.esc(c.label)}${s ? ' · '+this.esc(s.label) : ''}</span>
             <span class="lh-dash-progress-title">${this.esc(n.title)}</span>
             <span class="lh-dash-progress-age">${this.ageLabel(n.createdAt)}</span>
           </div>`;
         }).join('')
-      : `<div class="lh-dash-empty">Không có bài tập nào đang dang dở — tốt lắm!</div>`;
+      : `<div class="lh-dash-empty">Không có ghi chú/bài tập nào cần nhắc nhở hoàn thiện — tốt lắm!</div>`;
 
     const inProgressNotesHtml = inProgressNotes.length
       ? inProgressNotes.map(n => {
@@ -2907,17 +2905,11 @@ renderList(){
       <p class="lh-dash-section-title">Số lượng theo mục</p>
       <div class="lh-dash-grid">${subcatCards || '<div class="lh-dash-empty">Chưa có mục con nào được dùng.</div>'}</div>
 
-      <p class="lh-dash-section-title">Rèn luyện đang dang dở</p>
-      <div style="margin-bottom:22px;">${inProgressHtml}</div>
-
-      <p class="lh-dash-section-title">Ghi chú đang thực hiện</p>
-      <div style="margin-bottom:22px;">${inProgressNotesHtml}</div>
+      <p class="lh-dash-section-title">🔔 Cần hoàn thiện</p>
+      <div style="margin-bottom:22px;">${needsAttentionHtml}</div>
 
       <p class="lh-dash-section-title">Tag hay dùng nhất</p>
       <div class="lh-dash-tagcloud">${tagCloudHtml}</div>
-
-      <p class="lh-dash-section-title">🔔 Cần nhắc nhở hoàn thiện</p>
-      <div style="margin-bottom:22px;">${reminderHtml}</div>
 
       <p class="lh-dash-section-title">🔁 Cần ôn tập hôm nay (Spaced Repetition)</p>
       <div style="margin-bottom:22px;">${dueHtml}</div>
