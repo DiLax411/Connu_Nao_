@@ -1864,6 +1864,14 @@ const needsReminder = document.getElementById('lh-f-reminder').checked;
       .map(n => ({targetId:n.id, type:'related'})).slice(0,5);
   },
 
+addLinkByTitle(noteId, typedTitle, type){
+    const title = (typedTitle || '').trim().toLowerCase();
+    if(!title){ this.setGlobalMsg('error', 'Vui lòng gõ tên ghi chú cần liên kết.'); return; }
+    const target = this.activeNotes().find(n => n.id !== noteId && n.title.trim().toLowerCase() === title);
+    if(!target){ this.setGlobalMsg('error', `Không tìm thấy ghi chú nào tên "${typedTitle}". Chọn đúng gợi ý trong danh sách gõ ra nhé.`); return; }
+    this.addLink(noteId, target.id, type);
+  },
+
   addLink(noteId, targetId, type){
     if(!targetId || noteId === targetId) return;
     const n = this.notes.find(x => x.id === noteId);
@@ -2723,9 +2731,12 @@ renderList(){
     if(this.linkPickerFor === note.id){
       const candidates = this.activeNotes().filter(n => n.id !== note.id && !rel.linked.some(l => l.note.id === n.id));
       html += `<div class="lh-link-add-row">
-        <select id="lh-link-target">${candidates.map(n => `<option value="${n.id}">${this.esc(n.title)}</option>`).join('')}</select>
+        <input type="text" id="lh-link-target-text" list="lh-link-candidates-${note.id}" placeholder="Gõ tên ghi chú cần liên kết..." autocomplete="off" style="flex:1;">
+        <datalist id="lh-link-candidates-${note.id}">
+          ${candidates.map(n => `<option value="${this.esc(n.title)}">`).join('')}
+        </datalist>
         <select id="lh-link-type">${RELATION_TYPES.map(r => `<option value="${r.id}">${r.label}</option>`).join('')}</select>
-        <button class="lh-btn primary" onclick="LH.addLink('${note.id}', document.getElementById('lh-link-target').value, document.getElementById('lh-link-type').value)">Thêm</button>
+        <button class="lh-btn primary" onclick="LH.addLinkByTitle('${note.id}', document.getElementById('lh-link-target-text').value, document.getElementById('lh-link-type').value)">Thêm</button>
         <button class="lh-btn" onclick="LH.closeLinkPicker()">Hủy</button>
       </div>`;
     }else{
