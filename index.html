@@ -6,7 +6,6 @@
 <title>Learning Hub — Bộ não thứ hai</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
-
   
 :root{
   --ink:#2B2A28;
@@ -2262,9 +2261,17 @@ addLinkByTitle(noteId, typedTitle, type){
       this.render();
       return;
     }
-   this.categories = this.categories.filter(c => c.id !== catId);
+    this.categories = this.categories.filter(c => c.id !== catId);
     if(this.activeCat === catId){ this.activeCat = 'all'; this.activeSubcat = null; }
-    this.renderCats();
+    if(this.managingCatId === catId) this.managingCatId = null;
+    this.catWarning = null;
+    this.persist();
+    // deleteCategory chỉ kiểm tra note ĐANG HOẠT ĐỘNG trước khi cho xóa — note trong Thùng rác vẫn có
+    // thể đang giữ category/subcat vừa xóa. Gọi luôn validateAndRepair() ở đây để gỡ tham chiếu mồ côi
+    // đó ngay (validateAndRepair tự persist() lần nữa NẾU nó thực sự sửa gì), thay vì phải chờ tới lần
+    // validateAndRepair() kế tiếp (vd lần mở app sau).
+    this.validateAndRepair();
+    this.render();
   },
 
   moveCategory(catId, dir){
@@ -2290,17 +2297,6 @@ addLinkByTitle(noteId, typedTitle, type){
     this.persist();
     this.renderCats();
   },
-    if(this.managingCatId === catId) this.managingCatId = null;
-    this.catWarning = null;
-    this.persist();
-    // deleteCategory chỉ kiểm tra note ĐANG HOẠT ĐỘNG trước khi cho xóa — note trong Thùng rác vẫn có
-    // thể đang giữ category/subcat vừa xóa. Gọi luôn validateAndRepair() ở đây để gỡ tham chiếu mồ côi
-    // đó ngay (validateAndRepair tự persist() lần nữa NẾU nó thực sự sửa gì), thay vì phải chờ tới lần
-    // validateAndRepair() kế tiếp (vd lần mở app sau).
-    this.validateAndRepair();
-    this.render();
-  },
-
   deleteSubcat(catId, subId){
     const count = this.activeNotes().filter(n => n.category === catId && n.subcat === subId).length;
     if(count > 0){
