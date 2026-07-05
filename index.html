@@ -688,7 +688,8 @@ const LH = {
   editingTarget: null,
   managingCatId: null,
   catWarning: null,
-  editingNoteId: null,
+ editingNoteId: null,
+  inlineEditId: null,
   globalMsg: null,
   selectMode: false,
   selectedIds: new Set(),
@@ -1548,6 +1549,40 @@ const LH = {
     this.draftStatus = status;
     document.getElementById('lh-status-progress').classList.toggle('active-progress', status === 'in_progress');
     document.getElementById('lh-status-done').classList.toggle('active-done', status === 'done');
+  },
+
+  startInlineEdit(id){
+    this.inlineEditId = id;
+    this.render();
+    setTimeout(() => { const ta = document.getElementById('lh-inline-content'); if(ta) ta.focus(); }, 0);
+  },
+
+  cancelInlineEdit(){
+    this.inlineEditId = null;
+    this.render();
+  },
+
+  saveInlineEdit(id){
+    const n = this.notes.find(x => x.id === id);
+    if(!n) return;
+    const title = document.getElementById('lh-inline-title').value.trim();
+    const content = document.getElementById('lh-inline-content').value.trim();
+    if(!title){ this.setGlobalMsg('error', 'Vui lòng nhập tiêu đề.'); return; }
+    n.title = title;
+    n.content = content;
+    n.lastEditedAt = Date.now();
+    n.updatedAt = Date.now();
+    this.logEvent('edit', n.id, n.title);
+    this.inlineEditId = null;
+    this.persist();
+    this.render();
+  },
+
+  onInlineContentKeydown(e, id){
+    if((e.ctrlKey || e.metaKey) && e.key === 'Enter'){
+      e.preventDefault();
+      this.saveInlineEdit(id);
+    }
   },
 
   closeModal(){ document.getElementById('lh-modal-overlay').classList.remove('open'); this.editingNoteId = null; },
@@ -2629,9 +2664,13 @@ renderList(){
     const lc = lifecycleOf(note.lifecycle);
     const due = this.isDueForReview(note);
 
+    const editingInline = this.inlineEditId === note.id;
+
     let html = `
       <div class="lh-detail-top">
-        <h3 class="lh-detail-title">${this.esc(note.title)}</h3>
+        ${editingInline
+          ? `<input class="lh-field lh-title-field" id="lh-inline-title" value="${this.esc(note.title)}" style="font-size:19px;font-weight:600;margin-bottom:0;">`
+          : `<h3 class="lh-detail-title" onclick="LH.startInlineEdit('${note.id}')" title="Bấm để sửa nhanh">${this.esc(note.title)}</h3>`}
         <div class="lh-badge-row">
           <span class="lh-badge" style="background:${c.bg};color:${c.color}">${this.esc(c.label)}</span>
           ${s ? `<span class="lh-badge" style="background:var(--paper-card);color:var(--ink-faint)">${this.esc(s.label)}</span>` : ''}
@@ -2644,11 +2683,17 @@ renderList(){
         ${note.source ? `<span class="lh-meta-badge">📚 ${this.esc(note.source)}</span>` : ''}
         ${note.purpose ? `<span class="lh-meta-badge">🎯 ${this.esc(note.purpose)}</span>` : ''}
       </div>` : ''}
-      <div class="lh-detail-content lh-note-content-rendered">${this.renderMarkdownLite(note.content, note.id)}</div>
+      ${editingInline
+        ? `<textarea class="lh-field lh-content-field" id="lh-inline-content" onkeydown="LH.onInlineContentKeydown(event,'${note.id}')">${this.esc(note.content)}</textarea>
+           <div class="lh-modal-actions">
+             <button class="lh-btn" onclick="LH.cancelInlineEdit()">Hủy</button>
+             <button class="lh-btn primary" onclick="LH.saveInlineEdit('${note.id}')">Lưu</button>
+           </div>`
+        : `<div class="lh-detail-content lh-note-content-rendered" onclick="LH.startInlineEdit('${note.id}')" title="Bấm để sửa nhanh">${this.renderMarkdownLite(note.content, note.id)}</div>`}
       <p class="lh-detail-date">Tạo ngày ${this.formatDate(note.createdAt)}${note.lastEditedAt ? ' · Cập nhật lần cuối ' + this.formatDate(note.lastEditedAt) : ''}${note.nextReviewAt ? ' · Lần ôn tập tiếp theo: ' + this.formatDate(note.nextReviewAt) : ''}</p>
       <div class="lh-tag-row">${note.tags.map(t=>`<span class="lh-tag"><span class="lh-tag-color-dot" style="background:${this.tagColor(t)}"></span>#${this.esc(t)}</span>`).join('')}</div>
       ${due ? `<div class="lh-dup-warning">⏰ Đã đến hạn ôn tập ghi chú này (Spaced Repetition).</div>` : ''}
-      <div class="lh-actions-row">
+     <div class="lh-actions-row" ${editingInline ? 'style="display:none;"' : ''}>
         ${note.type === 'task'
           ? `<button class="lh-btn ${note.done?'done':''}" onclick="LH.toggleDone('${note.id}')">${note.done?'✓ Đã hoàn thành':'Đánh dấu hoàn thành'}</button>`
           : `<button class="lh-btn ${note.status==='done'?'done':''}" onclick="LH.toggleStatus('${note.id}')">${note.status==='done'?'✓ Hoàn thành':'Đang thực hiện'}</button>
