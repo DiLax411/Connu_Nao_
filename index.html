@@ -2263,6 +2263,29 @@ addLinkByTitle(noteId, typedTitle, type){
     }
     this.categories = this.categories.filter(c => c.id !== catId);
     if(this.activeCat === catId){ this.activeCat = 'all'; this.activeSubcat = null; }
+    moveCategory(catId, dir){
+    const idx = this.categories.findIndex(c => c.id === catId);
+    const newIdx = idx + dir;
+    if(idx < 0 || newIdx < 0 || newIdx >= this.categories.length) return;
+    const [item] = this.categories.splice(idx, 1);
+    this.categories.splice(newIdx, 0, item);
+    this.categories.forEach(c => { c.updatedAt = Date.now(); });
+    this.persist();
+    this.renderCats();
+  },
+
+  moveSubcat(catId, subId, dir){
+    const c = this.getCat(catId);
+    if(!c) return;
+    const idx = c.subcats.findIndex(s => s.id === subId);
+    const newIdx = idx + dir;
+    if(idx < 0 || newIdx < 0 || newIdx >= c.subcats.length) return;
+    const [item] = c.subcats.splice(idx, 1);
+    c.subcats.splice(newIdx, 0, item);
+    c.updatedAt = Date.now();
+    this.persist();
+    this.renderCats();
+  },
     if(this.managingCatId === catId) this.managingCatId = null;
     this.catWarning = null;
     this.persist();
@@ -2413,9 +2436,12 @@ addLinkByTitle(noteId, typedTitle, type){
       }
 
       if(this.managingCatId === c.id){
+        const catIdx = this.categories.findIndex(x => x.id === c.id);
         html += `<div class="lh-manage-panel">
           <div class="lh-manage-sub-row">
             <span class="lh-manage-sub-label" style="font-weight:500;">Mục cha: ${this.esc(c.label)}</span>
+            <button class="lh-cat-icon-btn" title="Lên trên" ${catIdx===0?'disabled':''} onclick="LH.moveCategory('${c.id}',-1)">▲</button>
+            <button class="lh-cat-icon-btn" title="Xuống dưới" ${catIdx===this.categories.length-1?'disabled':''} onclick="LH.moveCategory('${c.id}',1)">▼</button>
             <button class="lh-cat-icon-btn" title="Đổi tên mục cha" onclick="LH.startRenameCat('${c.id}')">✎</button>
             <button class="lh-cat-icon-btn" title="Xóa mục cha" onclick="LH.deleteCategory('${c.id}')">🗑</button>
           </div>`;
@@ -2426,9 +2452,12 @@ addLinkByTitle(noteId, typedTitle, type){
               <button class="lh-inline-ok" onclick="LH.confirmRename()">✓</button>
               <button class="lh-cat-icon-btn" onclick="LH.cancelEdit()">✕</button>
             </div>`;
-          }else{
+         }else{
+            const subIdx = c.subcats.findIndex(x => x.id === s.id);
             html += `<div class="lh-manage-sub-row">
               <span class="lh-manage-sub-label">${this.esc(s.label)}</span>
+              <button class="lh-cat-icon-btn" title="Lên trên" ${subIdx===0?'disabled':''} onclick="LH.moveSubcat('${c.id}','${s.id}',-1)">▲</button>
+              <button class="lh-cat-icon-btn" title="Xuống dưới" ${subIdx===c.subcats.length-1?'disabled':''} onclick="LH.moveSubcat('${c.id}','${s.id}',1)">▼</button>
               <button class="lh-cat-icon-btn" title="Đổi tên" onclick="LH.startRenameSub('${c.id}','${s.id}')">✎</button>
               <button class="lh-cat-icon-btn" title="Xóa mục con" onclick="LH.deleteSubcat('${c.id}','${s.id}')">🗑</button>
             </div>`;
