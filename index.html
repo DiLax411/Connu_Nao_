@@ -1777,7 +1777,7 @@ renderMarkdownLite(text, noteId){
     const row = document.getElementById('lh-tag-suggest');
     if(!matches.length){ hint.style.display = 'none'; row.innerHTML = ''; return; }
     hint.style.display = 'block';
-    row.innerHTML = matches.slice(0,10).map(t => `<span class="lh-suggest-chip" onclick="LH.addDraftTag('${this.jsAttr(t)}')">#${this.esc(t)}</span>`).join('');
+   row.innerHTML = matches.map(t => `<span class="lh-suggest-chip" onclick="LH.addDraftTag('${this.jsAttr(t)}')">#${this.esc(t)}</span>`).join('');
   },
 
   saveNote(){
@@ -2882,9 +2882,9 @@ renderList(){
         }).join('')
       : `<div class="lh-dash-empty">Không có ghi chú/bài tập nào cần nhắc nhở hoàn thiện — tốt lắm!</div>`;
 
-    const topTags = this.getTopTags().slice(0,12);
-    const tagCloudHtml = topTags.length
-      ? topTags.map(t => `<span class="lh-dash-tag" onclick="LH.setView('library');document.getElementById('lh-search').value='${this.jsAttr(t.tag)}';LH.onSearch('${this.jsAttr(t.tag)}')">#${this.esc(t.tag)} <span style="opacity:0.6;">${t.count}</span></span>`).join('')
+   const allTagsSorted = this.getTopTags().sort((a,b) => a.tag.localeCompare(b.tag, 'vi'));
+    const tagCloudHtml = allTagsSorted.length
+      ? allTagsSorted.map(t => `<span class="lh-dash-tag" onclick="LH.setView('library');document.getElementById('lh-search').value='${this.jsAttr(t.tag)}';LH.onSearch('${this.jsAttr(t.tag)}')">#${this.esc(t.tag)} <span style="opacity:0.6;">${t.count}</span></span>`).join('')
       : `<div class="lh-dash-empty">Chưa có tag nào.</div>`;
 
     // GĐ4: gợi ý hành động — cần ôn tập hôm nay
@@ -2922,7 +2922,7 @@ renderList(){
       <p class="lh-dash-section-title">🔔 Cần hoàn thiện</p>
       <div style="margin-bottom:22px;">${needsAttentionHtml}</div>
 
-      <p class="lh-dash-section-title">Tag hay dùng nhất</p>
+      <p class="lh-dash-section-title">Tất cả tag (${this.getTopTags().length})</p>
       <div class="lh-dash-tagcloud">${tagCloudHtml}</div>
 
       <p class="lh-dash-section-title">🔁 Cần ôn tập hôm nay (Spaced Repetition)</p>
