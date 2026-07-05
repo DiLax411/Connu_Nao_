@@ -123,6 +123,9 @@ body{margin:0;}
 .lh-note-item{padding:10px 12px;border:1px solid var(--paper-line);border-radius:10px;background:#fff;cursor:pointer;display:flex;flex-direction:column;min-height:118px;transition:border-color .12s,box-shadow .12s;}
 .lh-note-item:hover{border-color:var(--rust);box-shadow:0 2px 8px rgba(0,0,0,0.06);}
 .lh-note-item.active{border-color:var(--rust);background:var(--paper-card);}
+.lh-note-item.lh-status-pending{box-shadow:inset 4px 0 0 #A3712E;}
+.lh-note-item.lh-status-completed{box-shadow:inset 4px 0 0 #3E6B5C;background:#F6F9F7;}
+.lh-note-item.active.lh-status-pending,.lh-note-item.active.lh-status-completed{background:var(--paper-card);}
 .lh-note-item-title{font-size:12.5px;font-weight:600;margin:0 0 4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.35;}
 .lh-note-item-title.done{color:var(--ink-faint);}
 .lh-check-mark{color:#3E6B5C;font-size:12px;flex-shrink:0;}
@@ -2529,8 +2532,10 @@ renderList(){
     }
     const list = fullList.slice(0, this.listVisibleCount);
     const remaining = fullList.length - list.length;
-    const itemsHtml = list.map(n => {
+const itemsHtml = list.map(n => {
       const c = this.catOf(n.category);
+      const isCompleted = n.type === 'task' ? n.done : n.status === 'done';
+      const statusClass = isCompleted ? 'lh-status-completed' : 'lh-status-pending';
       const marker = n.type === 'task'
         ? (n.done ? '<span class="lh-check-mark">✓</span>' : '')
         : (n.pinned ? '<span class="lh-pin-mark">📌</span>' : '');
@@ -2538,7 +2543,7 @@ renderList(){
         ? `<input type="checkbox" class="lh-note-checkbox" style="align-self:flex-end;margin-bottom:4px;" ${this.selectedIds.has(n.id)?'checked':''} onclick="event.stopPropagation();LH.toggleSelect('${n.id}')">`
         : '';
       const preview = this.esc((n.content||'').replace(/\s+/g,' ').trim());
-      return `<div class="lh-note-item ${this.activeId===n.id?'active':''}" onclick="${this.selectMode ? `LH.toggleSelect('${n.id}')` : `LH.select('${n.id}')`}">
+      return `<div class="lh-note-item ${statusClass} ${this.activeId===n.id?'active':''}" onclick="${this.selectMode ? `LH.toggleSelect('${n.id}')` : `LH.select('${n.id}')`}">
         ${checkbox}
         <p class="lh-note-item-title ${n.done?'done':''}">${marker}${this.esc(n.title)}</p>
         <p class="lh-note-item-preview">${preview}</p>
