@@ -2856,18 +2856,6 @@ renderList(){
         }).join('')
       : `<div class="lh-dash-empty">Không có ghi chú/bài tập nào cần nhắc nhở hoàn thiện — tốt lắm!</div>`;
 
-    const inProgressNotesHtml = inProgressNotes.length
-      ? inProgressNotes.map(n => {
-          const c = this.catOf(n.category);
-          const s = n.subcat ? this.getSubcat(n.category, n.subcat) : null;
-          return `<div class="lh-dash-progress-item" onclick="LH.setView('library');LH.select('${n.id}')">
-            <span style="color:${c.color};font-size:11px;">${this.esc(c.label)}${s ? ' · '+this.esc(s.label) : ''}</span>
-            <span class="lh-dash-progress-title">${this.esc(n.title)}</span>
-            <span class="lh-dash-progress-age">${this.ageLabel(n.createdAt)}</span>
-          </div>`;
-        }).join('')
-      : `<div class="lh-dash-empty">Không có ghi chú nào đang thực hiện dở — tốt lắm!</div>`;
-
     const topTags = this.getTopTags().slice(0,12);
     const tagCloudHtml = topTags.length
       ? topTags.map(t => `<span class="lh-dash-tag" onclick="LH.setView('library');document.getElementById('lh-search').value='${this.jsAttr(t.tag)}';LH.onSearch('${this.jsAttr(t.tag)}')">#${this.esc(t.tag)} <span style="opacity:0.6;">${t.count}</span></span>`).join('')
