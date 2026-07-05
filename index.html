@@ -2842,8 +2842,8 @@ renderList(){
     const inProgress = notes
       .filter(n => n.type === 'task' && !n.done)
       .sort((a,b) => a.createdAt - b.createdAt);
-    const inProgressNotes = notes
-      .filter(n => n.type === 'note' && n.status === 'in_progress')
+   const inProgressNotes = notes
+      .filter(n => n.type === 'note' && n.status === 'in_progress' && n.needsReminder)
       .sort((a,b) => a.createdAt - b.createdAt);
     const totalInProgress = inProgress.length + inProgressNotes.length;
 
@@ -2883,20 +2883,6 @@ renderList(){
           <span class="lh-dash-progress-age">Hạn: ${this.formatDate(n.nextReviewAt)}</span>
         </div>`).join('')
       : `<div class="lh-dash-empty">Không có ghi chú nào cần ôn tập hôm nay.</div>`;
-// Cần nhắc nhở hoàn thiện: note bật cờ needsReminder + chưa hoàn thành
-    const reminderNotes = notes.filter(n => n.needsReminder &&
-      ((n.type === 'task' && !n.done) || (n.type === 'note' && n.status !== 'done')));
-    const reminderHtml = reminderNotes.length
-      ? reminderNotes.map(n => {
-          const c = this.catOf(n.category);
-          return `<div class="lh-dash-progress-item" onclick="LH.setView('library');LH.select('${n.id}')">
-            <span style="color:${c.color};font-size:11px;">${this.esc(c.label)}</span>
-            <span class="lh-dash-progress-title">🔔 ${this.esc(n.title)}</span>
-            <span class="lh-dash-progress-age">${this.ageLabel(n.createdAt)}</span>
-          </div>`;
-        }).join('')
-      : `<div class="lh-dash-empty">Không có ghi chú nào cần nhắc nhở.</div>`;
-
     // GĐ4: gợi ý dọn dẹp — cặp ghi chú có nội dung trùng lặp cao.
     // Tối ưu: dùng findDuplicatePairs() (inverted index + cache theo _notesVersion) thay vì so
     // TẤT CẢ cặp note với nhau mỗi lần mở tab Tổng quan — với hàng ngàn note, cách cũ (O(n²), tokenize
