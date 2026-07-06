@@ -756,11 +756,12 @@ const LH = {
     // để persist() sau này CHỈ đẩy lên đúng phần tử thực sự thay đổi, không đụng tới phần của thiết bị khác.
     this._syncedNoteJSON = new Map();
     this._syncedCatJSON = new Map();
+    this._pendingCatDeletes = new Set(); // id mục vừa bấm xóa nhưng chưa chắc đã xóa xong trên mây
     try{
       await this.mergeRemoteCollection('note:', this.notes, this._syncedNoteJSON,
         (remote, local) => (remote.updatedAt||remote.lastEditedAt||remote.createdAt||0) - (local.updatedAt||local.lastEditedAt||local.createdAt||0));
-      await this.mergeRemoteCollection('cat:', this.categories, this._syncedCatJSON,
-        (remote, local) => (remote.updatedAt||0) - (local.updatedAt||0));
+await this.mergeRemoteCollection('cat:', this.categories, this._syncedCatJSON,
+        (remote, local) => (remote.updatedAt||0) - (local.updatedAt||0), this._pendingCatDeletes);
     }catch(e){
       console.warn('Đồng bộ theo từng mục lỗi lúc tải, tạm dùng dữ liệu trên máy này:', e && e.message);
     }
@@ -827,8 +828,8 @@ const LH = {
         const beforeCats = JSON.stringify(this.categories);
         await this.mergeRemoteCollection('note:', this.notes, this._syncedNoteJSON,
           (remote, local) => (remote.updatedAt||remote.lastEditedAt||remote.createdAt||0) - (local.updatedAt||local.lastEditedAt||local.createdAt||0));
-        await this.mergeRemoteCollection('cat:', this.categories, this._syncedCatJSON,
-          (remote, local) => (remote.updatedAt||0) - (local.updatedAt||0));
+      await this.mergeRemoteCollection('cat:', this.categories, this._syncedCatJSON,
+          (remote, local) => (remote.updatedAt||0) - (local.updatedAt||0), this._pendingCatDeletes);
         if(JSON.stringify(this.notes) !== beforeNotes || JSON.stringify(this.categories) !== beforeCats){
           // Có dữ liệu mới từ thiết bị khác -> dựng lại các cache phụ thuộc vào danh sách note rồi vẽ lại
           this._notesVersion++;
@@ -873,12 +874,19 @@ const LH = {
   //  - Có ở cả 2 bên -> dùng `isRemoteNewer(remoteItem, localItem)` để quyết định giữ bản nào.
   // Sau khi gộp, `syncedMap` lưu đúng chuỗi JSON hiện có trên server cho từng id — đây chính là
   // "điểm mốc" để persist() sau này biết phần tử nào đã đổi so với server và cần đẩy lên lại.
-  async mergeRemoteCollection(prefix, localArray, syncedMap, isRemoteNewer){
+async mergeRemoteCollection(prefix, localArray, syncedMap, isRemoteNewer, pendingDeletes){
     const rows = await window.storage.getByPrefix(prefix);
     if(!rows || !rows.length) return; // chưa bật đồng bộ, hoặc server chưa có dữ liệu -> giữ nguyên local
     const localById = new Map(localArray.map(item => [item.id, item]));
     rows.forEach(row => {
       const id = row.key.slice(prefix.length);
+      // Mục này vừa bị xóa ở máy này nhưng lệnh xóa trên mây có thể chưa kịp thực thi xong -> KHÔNG
+      // được hồi sinh nó vào local. Thay vào đó chủ động dọn nốt khóa mồ côi này trên mây (fire-and-forget),
+      // phòng trường hợp lệnh xóa gốc đã thất bại giữa chừng.
+      if(pendingDeletes && pendingDeletes.has(id)){
+        window.storage.delete(row.key).catch(() => {});
+        return;
+      }
       let remoteItem;
       try{ remoteItem = JSON.parse(row.value); }catch(e){ return; }
       if(!remoteItem || !remoteItem.id) return;
@@ -1097,12 +1105,12 @@ const LH = {
           });
         }catch(e){ anyFail = true; }
       }
-      for(const chunk of delChunks){
+     for(const chunk of delChunks){
         try{
           await window.storage.deleteMany(chunk.map(it => it.key));
           chunk.forEach(it => {
             if(it.kind === 'noteDel') this._syncedNoteJSON.delete(it.id);
-            else if(it.kind === 'catDel') this._syncedCatJSON.delete(it.id);
+            else if(it.kind === 'catDel'){ this._syncedCatJSON.delete(it.id); this._pendingCatDeletes.delete(it.id); }
           });
         }catch(e){ anyFail = true; }
       }
@@ -2265,6 +2273,7 @@ addLinkByTitle(noteId, typedTitle, type){
       this.render();
       return;
     }
+    this._pendingCatDeletes.add(catId);
     this.categories = this.categories.filter(c => c.id !== catId);
     if(this.activeCat === catId){ this.activeCat = 'all'; this.activeSubcat = null; }
     if(this.managingCatId === catId) this.managingCatId = null;
