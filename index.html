@@ -611,23 +611,6 @@ async function lhLogout(){
 </script>
 
 <script>
-const DEFAULT_CATEGORIES = [
-  {id:'english', label:'English', color:'#3E6B5C', bg:'#DCE9E1', subcats:[
-    {id:'vocab', label:'Vocabulary'},{id:'pattern', label:'Pattern'},{id:'grammar', label:'Grammar'},{id:'collocation', label:'Collocation'}
-  ]},
-  {id:'reading', label:'Reading', color:'#4A5D8C', bg:'#DEE3F2', subcats:[
-    {id:'paper', label:'Paper'},{id:'book', label:'Book'},{id:'highlight', label:'Highlight'}
-  ]},
-  {id:'writing', label:'Writing', color:'#8C5A9C', bg:'#EBDCEF', subcats:[
-    {id:'idea', label:'Ý tưởng'},{id:'draft', label:'Draft'}
-  ]},
-  {id:'psych', label:'Psychology', color:'#A3712E', bg:'#F2E5CC', subcats:[
-    {id:'concept', label:'Khái niệm'},{id:'experiment', label:'Thí nghiệm'}
-  ]},
-  {id:'story', label:'Story', color:'#B5502E', bg:'#F2DCD2', subcats:[
-    {id:'character', label:'Nhân vật'},{id:'plot', label:'Cốt truyện'}
-  ]}
-];
 
 const PALETTE = [
   {color:'#3E6B5C',bg:'#DCE9E1'},{color:'#4A5D8C',bg:'#DEE3F2'},{color:'#8C5A9C',bg:'#EBDCEF'},
@@ -739,22 +722,8 @@ const LH = {
     // lần đầu getTokenSet() được gọi cho note đó.
     this.notes.forEach(n => { delete n._tokCache; delete n._tokCacheKey; });
 
-    const catsRes = await this.loadWithFallback('lh-categories', 'lh-categories-backup', v => Array.isArray(v));
-    const catsInitFlag = await window.storage.get('lh-categories-initialized');
-    const categoriesEverInitialized = !!(catsInitFlag && catsInitFlag.value === 'true');
-
-    if(categoriesEverInitialized){
-      // Đã từng khởi tạo category rồi (trên bất kỳ máy nào) -> KHÔNG bao giờ tự động chèn
-      // DEFAULT_CATEGORIES nữa, kể cả khi local đang rỗng (máy mới / vừa xóa hết category).
-      // Để mergeRemoteCollection('cat:', ...) bên dưới tự lấy đúng dữ liệu thật từ cloud.
-      this.categories = (catsRes.value && Array.isArray(catsRes.value)) ? catsRes.value : [];
-    } else {
-      // Thật sự là lần đầu tiên chưa từng có category nào, kể cả trên cloud -> dùng mặc định
-      // và đánh dấu đã khởi tạo để các máy khác/sau này không bị chèn lại default nữa.
-      this.categories = (catsRes.value && catsRes.value.length) ? catsRes.value : DEFAULT_CATEGORIES;
-      try{ await window.storage.set('lh-categories-initialized', 'true'); }catch(e){}
-    }
-    if(!Array.isArray(this.categories)) this.categories = [];
+ const catsRes = await this.loadWithFallback('lh-categories', 'lh-categories-backup', v => Array.isArray(v));
+    this.categories = Array.isArray(catsRes.value) ? catsRes.value : [];
 
     if(notesRes.recovered || catsRes.recovered){
       this.setGlobalMsg('error', '⚠️ Dữ liệu chính bị lỗi khi tải — hệ thống đã tự động phục hồi từ bản sao lưu gần nhất. Vui lòng kiểm tra lại ghi chú và xuất backup ngay để đảm bảo an toàn.');
@@ -775,6 +744,9 @@ const LH = {
         (remote, local) => (remote.updatedAt||remote.lastEditedAt||remote.createdAt||0) - (local.updatedAt||local.lastEditedAt||local.createdAt||0));
 await this.mergeRemoteCollection('cat:', this.categories, this._syncedCatJSON,
         (remote, local) => (remote.updatedAt||0) - (local.updatedAt||0), this._pendingCatDeletes);
+      // Sắp xếp lại theo `order` (lưu trong từng category) sau khi gộp dữ liệu từ cloud, vì
+      // mergeRemoteCollection chỉ gộp NỘI DUNG, không quan tâm thứ tự hiển thị.
+      this.categories.sort((a,b) => (a.order ?? 0) - (b.order ?? 0));
     }catch(e){
       console.warn('Đồng bộ theo từng mục lỗi lúc tải, tạm dùng dữ liệu trên máy này:', e && e.message);
     }
@@ -1653,7 +1625,7 @@ toggleReminder(id){
       return;
     }
     const p = PALETTE[this.categories.length % PALETTE.length];
-    const newCat = {id:this.genId('c'), label, color:p.color, bg:p.bg, subcats:[], updatedAt: Date.now()};
+const newCat = {id:this.genId('c'), label, color:p.color, bg:p.bg, subcats:[], order:this.categories.length, updatedAt: Date.now()};
     this.categories.push(newCat);
     this.persist();
     this.renderCatSelect(newCat.id, null);
@@ -1989,7 +1961,7 @@ addLinkByTitle(noteId, typedTitle, type){
         return;
       }
       const p = PALETTE[this.categories.length % PALETTE.length];
-      this.categories.push({id:this.genId('c'), label, color:p.color, bg:p.bg, subcats:[], updatedAt: Date.now()});
+      this.categories.push({id:this.genId('c'), label, color:p.color, bg:p.bg, subcats:[], order:this.categories.length, updatedAt: Date.now()});
     }else{
       const c = this.getCat(this.addingCatFor);
       if(c){
@@ -2300,17 +2272,18 @@ deleteCategory(catId){
     this.render();
   },
 
-  moveCategory(catId, dir){
+moveCategory(catId, dir){
     const idx = this.categories.findIndex(c => c.id === catId);
     const newIdx = idx + dir;
     if(idx < 0 || newIdx < 0 || newIdx >= this.categories.length) return;
     const [item] = this.categories.splice(idx, 1);
     this.categories.splice(newIdx, 0, item);
-    this.categories.forEach(c => { c.updatedAt = Date.now(); });
+    // Ghi order = vị trí trong mảng cho MỌI category — đồng bộ lưu từng category riêng lẻ theo key
+    // (cat:<id>), không lưu cả mảng, nên order phải nằm TRONG từng category thì mới đồng bộ được.
+    this.categories.forEach((c, i) => { c.order = i; c.updatedAt = Date.now(); });
     this.persist();
     this.renderCats();
   },
-
   moveSubcat(catId, subId, dir){
     const c = this.getCat(catId);
     if(!c) return;
