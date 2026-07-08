@@ -185,7 +185,12 @@ body{margin:0;}
 .lh-modal-divider{border-top:1px solid var(--paper-line);margin:18px 0 14px;}
 .lh-note-content-rendered{font-size:14px;line-height:1.7;color:var(--ink-soft);}
 .lh-note-content-rendered ul{margin:4px 0 4px 0;padding-left:20px;}
-.lh-note-content-rendered li{margin-bottom:3px;}
+.lh-note-content-rendered .lh-chk-item input{margin-top:3px;}
+.lh-content-collapsible{position:relative;max-height:220px;overflow:hidden;}
+.lh-content-collapsible.expanded{max-height:none;}
+.lh-content-collapsible.collapsed::after{content:'';position:absolute;left:0;right:0;bottom:0;height:56px;background:linear-gradient(to bottom, rgba(255,255,255,0), var(--paper-card,#fff) 85%);pointer-events:none;}
+.lh-see-more-btn{display:inline-block;margin:2px 0 14px;font-size:12.5px;font-weight:600;color:var(--thread);cursor:pointer;user-select:none;}
+.lh-see-more-btn:hover{text-decoration:underline;}
 .lh-note-content-rendered .lh-chk-item{list-style:none;margin-left:-20px;display:flex;gap:6px;align-items:flex-start;}
 .lh-note-content-rendered .lh-chk-item input{margin-top:3px;}
 .lh-modal h3{font-family:'Source Serif 4',serif;margin:0 0 14px;font-size:16px;}
@@ -659,6 +664,7 @@ const LH = {
   globalMsg: null,
   selectMode: false,
   selectedIds: new Set(),
+  expandedContentIds: new Set(),
   bulkPanel: null,
   lastExportAt: null,
 
@@ -1380,6 +1386,11 @@ async mergeRemoteCollection(prefix, localArray, syncedMap, isRemoteNewer, pendin
 
   isDueForReview(n){ return n.nextReviewAt && n.nextReviewAt <= Date.now(); },
 
+  toggleContentExpand(id){
+    if(this.expandedContentIds.has(id)) this.expandedContentIds.delete(id);
+    else this.expandedContentIds.add(id);
+    this.renderDetail();
+  },
   startMove(id){ this.movingId = id; this.render(); },
   cancelMove(){ this.movingId = null; this.render(); },
 
@@ -2708,7 +2719,14 @@ const itemsHtml = list.map(n => {
              <button class="lh-btn" onclick="LH.cancelInlineEdit()">Hủy</button>
              <button class="lh-btn primary" onclick="LH.saveInlineEdit('${note.id}')">Lưu</button>
            </div>`
-        : `<div class="lh-detail-content lh-note-content-rendered" onclick="LH.startInlineEdit('${note.id}')" title="Bấm để sửa nhanh">${this.renderMarkdownLite(note.content, note.id)}</div>`}
+       : (() => {
+            const rendered = this.renderMarkdownLite(note.content, note.id);
+            const isLong = (note.content || '').length > 380 || (note.content || '').split('\n').length > 8;
+            const isExpanded = this.expandedContentIds.has(note.id);
+            const collapseClass = isLong ? (isExpanded ? 'lh-content-collapsible expanded' : 'lh-content-collapsible collapsed') : '';
+            return `<div class="lh-detail-content lh-note-content-rendered ${collapseClass}" onclick="${isLong ? '' : `LH.startInlineEdit('${note.id}')`}" title="${isLong ? '' : 'Bấm để sửa nhanh'}">${rendered}</div>
+              ${isLong ? `<span class="lh-see-more-btn" onclick="LH.toggleContentExpand('${note.id}')">${isExpanded ? '▲ Thu gọn' : '▼ Xem thêm'}</span>` : ''}`;
+          })()}
       <p class="lh-detail-date">Tạo ngày ${this.formatDate(note.createdAt)}${note.lastEditedAt ? ' · Cập nhật lần cuối ' + this.formatDate(note.lastEditedAt) : ''}${note.nextReviewAt ? ' · Lần ôn tập tiếp theo: ' + this.formatDate(note.nextReviewAt) : ''}</p>
       <div class="lh-tag-row">${note.tags.map(t=>`<span class="lh-tag"><span class="lh-tag-color-dot" style="background:${this.tagColor(t)}"></span>#${this.esc(t)}</span>`).join('')}</div>
       ${due ? `<div class="lh-dup-warning">⏰ Đã đến hạn ôn tập ghi chú này (Spaced Repetition).</div>` : ''}
