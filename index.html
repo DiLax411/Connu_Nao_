@@ -236,6 +236,16 @@ textarea.lh-field{resize:vertical;min-height:70px;font-family:'Inter',sans-serif
 .lh-dash-section-title{font-family:'Source Serif 4',serif;font-size:15px;font-weight:600;margin:0 0 10px;}
 .lh-dash-progress-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--paper-line);border-radius:8px;margin-bottom:7px;cursor:pointer;background:#fff;}
 .lh-dash-progress-item:hover{border-color:var(--rust);}
+
+#lh-cleanup-overlay{position:absolute;inset:0;background:rgba(43,42,40,0.35);display:none;align-items:flex-start;justify-content:center;padding:30px 20px;z-index:20;border-radius:12px;overflow-y:auto;}
+#lh-cleanup-overlay.open{display:flex;}
+.lh-cleanup-modal{background:var(--paper);border-radius:11px;padding:20px 22px;width:100%;max-width:640px;border:1px solid var(--paper-line);}
+.lh-cleanup-pair{display:flex;gap:14px;flex-wrap:wrap;margin:14px 0;}
+.lh-cleanup-card{flex:1;min-width:240px;border:1px solid var(--paper-line);border-radius:9px;padding:12px 14px;background:#fff;}
+.lh-cleanup-card.deleted{opacity:0.55;}
+.lh-cleanup-card-title{font-size:13.5px;font-weight:600;margin:0 0 6px;}
+.lh-cleanup-card-preview{font-size:12px;color:var(--ink-soft);line-height:1.5;margin:0 0 10px;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;}
+.lh-cleanup-card-actions{display:flex;gap:6px;}
 .lh-dash-progress-title{font-size:13px;font-weight:500;flex:1;}
 .lh-dash-progress-age{font-size:11px;color:var(--ink-faint);white-space:nowrap;}
 .lh-dash-tagcloud{display:flex;flex-wrap:wrap;gap:8px;}
@@ -281,6 +291,10 @@ textarea.lh-field{resize:vertical;min-height:70px;font-family:'Inter',sans-serif
 </div>
 
 <div id="lh-root" style="display:none;">
+<div id="lh-cleanup-overlay">
+    <div class="lh-cleanup-modal" id="lh-cleanup-modal-body"></div>
+  </div>
+
   <div id="lh-modal-overlay">
     <div class="lh-modal lh-modal-wide">
       <h3 id="lh-modal-title">Ghi chú mới</h3>
@@ -679,6 +693,8 @@ const LH = {
   selectMode: false,
   selectedIds: new Set(),
   expandedContentIds: new Set(),
+  cleanupPair: null,
+  cleanupEditingId: null,
   bulkPanel: null,
   lastExportAt: null,
 
@@ -1409,10 +1425,103 @@ clearDateFilter(){
 
   isDueForReview(n){ return n.nextReviewAt && n.nextReviewAt <= Date.now(); },
 
-  toggleContentExpand(id){
+ toggleContentExpand(id){
     if(this.expandedContentIds.has(id)) this.expandedContentIds.delete(id);
     else this.expandedContentIds.add(id);
     this.renderDetail();
+  },
+
+  openCleanupPopup(aId, bId){
+    this.cleanupPair = { aId, bId };
+    this.cleanupEditingId = null;
+    this.renderCleanupPopup();
+    document.getElementById('lh-cleanup-overlay').classList.add('open');
+  },
+
+  closeCleanupPopup(){
+    document.getElementById('lh-cleanup-overlay').classList.remove('open');
+    this.cleanupPair = null;
+    this.cleanupEditingId = null;
+  },
+
+  startCleanupEdit(id){
+    this.cleanupEditingId = id;
+    this.renderCleanupPopup();
+  },
+
+  cancelCleanupEdit(){
+    this.cleanupEditingId = null;
+    this.renderCleanupPopup();
+  },
+
+  saveCleanupEdit(id){
+    const n = this.notes.find(x => x.id === id);
+    if(!n) return;
+    const title = document.getElementById('lh-cleanup-title-' + id).value.trim();
+    const content = document.getElementById('lh-cleanup-content-' + id).value;
+    if(!title){ this.setStatus('Tiêu đề không được để trống'); return; }
+    this.pushUndo();
+    n.title = title;
+    n.content = content;
+    n.updatedAt = Date.now();
+    n.lastEditedAt = Date.now();
+    this._notesVersion++;
+    this.logEvent('edit', id, n.title);
+    this.persist();
+    this.cleanupEditingId = null;
+    this.renderCleanupPopup();
+    this.render();
+  },
+
+  deleteCleanupNote(id){
+    this.deleteNote(id);
+    this.renderCleanupPopup();
+  },
+
+  renderCleanupCard(id){
+    const n = this.notes.find(x => x.id === id);
+    if(!n) return `<div class="lh-cleanup-card deleted"><p class="lh-cleanup-card-preview">Ghi chú không còn tồn tại.</p></div>`;
+    if(n.deletedAt){
+      return `<div class="lh-cleanup-card deleted">
+        <p class="lh-cleanup-card-title">${this.esc(n.title)}</p>
+        <p class="lh-cleanup-card-preview">Đã chuyển vào thùng rác.</p>
+      </div>`;
+    }
+    if(this.cleanupEditingId === id){
+      return `<div class="lh-cleanup-card">
+        <input class="lh-field" id="lh-cleanup-title-${id}" value="${this.esc(n.title)}" style="margin-bottom:8px;">
+        <textarea class="lh-field" id="lh-cleanup-content-${id}" style="min-height:110px;">${this.esc(n.content)}</textarea>
+        <div class="lh-cleanup-card-actions">
+          <button class="lh-btn" onclick="LH.cancelCleanupEdit()">Hủy</button>
+          <button class="lh-btn primary" onclick="LH.saveCleanupEdit('${id}')">Lưu</button>
+        </div>
+      </div>`;
+    }
+    const preview = (n.content || '').slice(0, 160);
+    return `<div class="lh-cleanup-card">
+      <p class="lh-cleanup-card-title">${this.esc(n.title)}</p>
+      <p class="lh-cleanup-card-preview">${this.esc(preview)}${(n.content||'').length > 160 ? '…' : ''}</p>
+      <div class="lh-cleanup-card-actions">
+        <button class="lh-btn" onclick="LH.startCleanupEdit('${id}')">Sửa</button>
+        <button class="lh-btn danger" onclick="LH.deleteCleanupNote('${id}')">Xóa</button>
+      </div>
+    </div>`;
+  },
+
+  renderCleanupPopup(){
+    if(!this.cleanupPair) return;
+    const body = document.getElementById('lh-cleanup-modal-body');
+    body.innerHTML = `
+      <h3 style="margin:0 0 4px;">Ghi chú cần review</h3>
+      <p style="font-size:12px;color:var(--ink-faint);margin:0 0 4px;">Nội dung 2 ghi chú này có thể trùng lặp. Bạn có thể sửa hoặc xóa (chuyển vào thùng rác) ngay tại đây.</p>
+      <div class="lh-cleanup-pair">
+        ${this.renderCleanupCard(this.cleanupPair.aId)}
+        ${this.renderCleanupCard(this.cleanupPair.bId)}
+      </div>
+      <div class="lh-modal-actions">
+        <button class="lh-btn" onclick="LH.closeCleanupPopup()">Đóng</button>
+      </div>
+    `;
   },
   startMove(id){ this.movingId = id; this.render(); },
   cancelMove(){ this.movingId = null; this.render(); },
@@ -2942,8 +3051,8 @@ const itemsHtml = list.map(n => {
     // TẤT CẢ cặp note với nhau mỗi lần mở tab Tổng quan — với hàng ngàn note, cách cũ (O(n²), tokenize
     // lại liên tục) có thể làm trang treo nhiều giây mỗi lần vào Dashboard.
     const dupPairs = this.findDuplicatePairs();
-    const dupHtml = dupPairs.length
-      ? dupPairs.slice(0,5).map(p => `<div class="lh-dash-progress-item" style="cursor:default;">
+  const dupHtml = dupPairs.length
+      ? dupPairs.slice(0,5).map(p => `<div class="lh-dash-progress-item" onclick="LH.openCleanupPopup('${p.a.id}','${p.b.id}')">
           <span class="lh-dash-progress-title">${this.esc(p.a.title)} ↔ ${this.esc(p.b.title)}</span>
           <span class="lh-dash-progress-age">${Math.round(p.score*100)}% giống nhau</span>
         </div>`).join('')
