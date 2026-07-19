@@ -181,11 +181,20 @@ if(rel.suggested.length){
   html += rel.suggested.map(x => { const nc = this.catOf(x.note.category);
     return `<div class="lh-link-item" onclick="LH.select('${x.note.id}')">
     <span class="lh-link-thread" style="color:var(--thread)">~</span>
-    <span style="color:${nc.color}">${this.esc(nc.label)}</span> · ${this.esc(x.note.title)}
+    <span class="lh-link-title"><span style="color:${nc.color}">${this.esc(nc.label)}</span> · ${this.esc(x.note.title)}</span>
     <span class="lh-rel-reason">${this.esc(x.reasons.join(' · '))}</span>
     <span class="lh-link-remove" style="color:var(--thread)" onclick="event.stopPropagation();LH.addLink('${note.id}','${x.note.id}','related')">+liên kết</span>
     <span class="lh-link-remove" style="color:var(--ink-faint);" title="Không liên quan" onclick="event.stopPropagation();LH.dismissSuggestion('${note.id}','${x.note.id}')">✕</span>
   </div>`; }).join('');
+}
+
+if(rel.possibleDuplicates.length){
+  html += `<p class="lh-section-label">⚠️ Có thể trùng lặp</p>`;
+  html += rel.possibleDuplicates.map(n => `<div class="lh-link-item" onclick="LH.select('${n.id}')">
+    <span class="lh-link-thread" style="color:var(--rust)">≡</span>
+    <span class="lh-link-title">${this.esc(n.title)}</span>
+    <span class="lh-link-remove" onclick="event.stopPropagation();LH.addLink('${note.id}','${n.id}','duplicate')">đánh dấu trùng</span>
+  </div>`).join('');
 }
 
 if(rel.possibleDuplicates.length){
