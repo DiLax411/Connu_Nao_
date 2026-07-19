@@ -176,10 +176,26 @@ body{margin:0;}
 .lh-tag{font-family:'JetBrains Mono',monospace;font-size:11px;padding:3px 8px;border-radius:5px;background:var(--paper-card);color:var(--thread);border:1px solid var(--paper-line);}
 
 .lh-section-label{font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-faint);font-weight:500;margin:16px 0 8px;}
-.lh-link-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--paper-line);border-radius:7px;margin-bottom:6px;cursor:pointer;font-size:12.5px;background:#fff;}
-.lh-rel-reason{font-size:10.5px;color:var(--ink-faint);margin-left:auto;white-space:nowrap;padding-left:6px;}
-.lh-link-item:hover{border-color:var(--rust);}
-.lh-link-thread{color:var(--thread);font-size:13px;}
+if(rel.suggested.length){
+  html += `<p class="lh-section-label">Có thể liên quan</p>`;
+  html += rel.suggested.map(x => { const nc = this.catOf(x.note.category);
+    return `<div class="lh-link-item" onclick="LH.select('${x.note.id}')">
+    <span class="lh-link-thread" style="color:var(--thread)">~</span>
+    <span style="color:${nc.color}">${this.esc(nc.label)}</span> · ${this.esc(x.note.title)}
+    <span class="lh-rel-reason">${this.esc(x.reasons.join(' · '))}</span>
+    <span class="lh-link-remove" style="color:var(--thread)" onclick="event.stopPropagation();LH.addLink('${note.id}','${x.note.id}','related')">+liên kết</span>
+    <span class="lh-link-remove" style="color:var(--ink-faint);" title="Không liên quan" onclick="event.stopPropagation();LH.dismissSuggestion('${note.id}','${x.note.id}')">✕</span>
+  </div>`; }).join('');
+}
+
+if(rel.possibleDuplicates.length){
+  html += `<p class="lh-section-label">⚠️ Có thể trùng lặp</p>`;
+  html += rel.possibleDuplicates.map(n => `<div class="lh-link-item" onclick="LH.select('${n.id}')">
+    <span class="lh-link-thread" style="color:var(--rust)">≡</span>
+    ${this.esc(n.title)}
+    <span class="lh-link-remove" onclick="event.stopPropagation();LH.addLink('${note.id}','${n.id}','duplicate')">đánh dấu trùng</span>
+  </div>`).join('');
+}
 
 .lh-actions-row{display:flex;gap:8px;margin-top:18px;align-items:center;flex-wrap:wrap;}
 .lh-btn{padding:7px 13px;border-radius:7px;border:1px solid var(--paper-line);background:#fff;font-size:12.5px;font-family:'Inter',sans-serif;cursor:pointer;color:var(--ink);}
